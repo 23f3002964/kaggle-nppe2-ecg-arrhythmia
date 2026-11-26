@@ -1,0 +1,214 @@
+# NPPE2 Winning Configuration - Reusable for Future ECG Competitions
+# Best Private: 0.72324 (S3 Standalone: True-Align + Classwise Pseudo)
+
+# ============================================================
+# DATA PREPROCESSING
+# ============================================================
+preprocessing:
+  # True sub-pixel R-peak alignment
+  alignment:
+    method: "true_align"
+    center_col: 124.7
+  
+  # RR features
+  rr_features:
+    enabled: true
+    transform: "log1p"
+    clip: 5.0
+    features: ["post_rr", "rr_ratio"]
+  
+  # Morphology features (8 features at CNN head)
+  morphology:
+    enabled: true
+    features:
+      - peak_position
+      - peak_amplitude
+      - width_half_max
+      - asymmetry
+      - energy_mid
+      - energy_left
+      - energy_right
+      - diff_energy
+
+# ============================================================
+# PSEUDO-LABELING (BEST: Class-wise)
+# ============================================================
+pseudo_labeling:
+  enabled: true
+  method: "classwise"
+  confidence_floor: 0.85
+  per_class_caps: true
+  probed_test_prior: [0.911, 0.010, 0.066, 0.013]
+  pseudo_weight: 0.5
+  source_model: "best_cnn"
+
+# ============================================================
+# MODEL ARCHITECTURE (1D ResNet - TRUE ALIGN)
+# ============================================================
+model:
+  type: "1d_resnet"
+  input_channels: 1
+  input_length: 250
+  num_classes: 4
+  
+  stem:
+    conv1d: [7, 32, 3]
+    batch_norm: true
+    activation: "relu"
+  
+  tower:
+    - block: "ResBlock"
+      channels: 32
+      kernel: 5
+      pool: 4
+      expand: 1
+    - block: "ResBlock"
+      channels: 64
+      kernel: 5
+      pool: 4
+      expand: 1
+    - block: "ResBlock"
+      channels: 128
+      kernel: 5
+  
+  head:
+    gap: true
+    concat_rr: true
+    fc_layers:
+      - [130, 128]
+      - relu: true
+      - dropout: 0.25
+      - [128, 4]
+
+# ============================================================
+# TRAINING
+# ============================================================
+training:
+  loss: "cross_entropy"
+  class_weights: "sqrt_inv"
+  pseudo_weight: 0.5
+  optimizer: "adamw"
+  lr: 0.001
+  weight_decay: 1e-4
+  batch_size: 256
+  epochs: 14
+  scheduler: "cosine"
+  early_stopping_patience: 3
+  cv_folds: 5
+  cv_strategy: "stratified"
+  seed: 42
+
+# ============================================================
+# AUGMENTATION (LIGHT)
+# ============================================================
+augmentation:
+  noise_std: 0.04
+  scale_range: [0.85, 1.15]
+  roll_range: [-4, 4]
+
+# ============================================================
+# BLENDING
+# ============================================================
+blending:
+  weights:
+    v3_model: 0.10
+    a_old_model: 0.225
+    b_true_model: 0.675
+  
+  decision_weights: [1.0, 0.25, 0.15, 2.65]
+
+# ============================================================
+# DECISION WEIGHTS (PROVEN)
+# ============================================================
+decision_weights:
+  c0: 1.0
+  c1: 0.25
+  c2: 0.15
+  c3: 2.65
+
+# ============================================================
+# C3 STRATEGY
+# ============================================================
+c3_strategy:
+  sweet_spot_count: 394
+  max_c3_predictions: 450
+  w3_max: 2.65
+  per_class_caps:
+    c0: 62780
+    c1: 689
+    c2: 4548
+    c3: 895
+
+# ============================================================
+# MORPHOLOGY FEATURES (8 features at CNN head)
+# ============================================================
+morphology_features:
+  - name: "peak_position"
+    formula: "argmax(|x|)"
+  - name: "peak_amplitude"
+    formula: "max(|x|)"
+  - name: "width_half_max"
+    formula: "samples where |x| > 0.5 * peak"
+  - name: "asymmetry"
+    formula: "(peak - left) / max(width, 1)"
+  - name: "energy_mid"
+    formula: "sum(|x[100:150]|) / sum(|x|)"
+  - name: "energy_left"
+    formula: "sum(|x[0:100]|) / sum(|x|)"
+  - name: "energy_right"
+    formula: "sum(|x[150:]|) / sum(|x|)"
+  - name: "diff_energy"
+    formula: "mean(|diff(x)|)"
+
+# ============================================================
+# ADVERSARIAL VALIDATION
+# ============================================================
+adversarial_validation:
+  features:
+    signal_columns_subset: "every_5th"
+    morphology_features: true
+    rr_features: true
+  
+  target_auc: 0.80
+  model: "lgbm"
+  cv_folds: 5
+  
+  feature_groups:
+    signal: "sig_* columns"
+    morphology: "morph_*"
+    rr: "post_rr, rr_ratio"
+
+# ============================================================
+# C3 STRATEGY
+# ============================================================
+c3_strategy:
+  sweet_spot_count: 394
+  max_c3_predictions: 450
+  w3_max: 2.65
+  per_class_caps:
+    c0: 62780
+    c1: 689
+    c2: 4548
+    c3: 895
+
+# ============================================================
+# AUGMENTATION
+# ============================================================
+augmentation:
+  noise_std: 0.04
+  scale_range: [0.85, 1.15]
+  roll_range: [-4, 4]
+
+# ============================================================
+# TRAINING HYPERPARAMETERS
+# ============================================================
+training:
+  epochs: 14
+  batch_size: 256
+  lr: 0.001
+  weight_decay: 1e-4
+  optimizer: "adamw"
+  scheduler: "cosine"
+  early_stopping_patience: 3
+  cv_folds: 5
+  seed: 42

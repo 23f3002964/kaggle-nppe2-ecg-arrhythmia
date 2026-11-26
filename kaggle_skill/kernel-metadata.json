@@ -1,0 +1,18 @@
+{
+  "id": "shalukumari456/nppe2-skill-experiments",
+  "title": "NPPE2 Skill Experiments",
+  "code_file": "nppe2_skill_experiments.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "nppe-2-t-2-26-ecg-heartbeat-arrhythmia-classification"
+  ],
+  "model_sources": []
+}

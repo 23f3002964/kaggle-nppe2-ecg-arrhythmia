@@ -1,6 +1,6 @@
 # NPPE2 ECG Heartbeat Arrhythmia Classification
 
-A complete time-series deep learning & ensembling solution for the **NPPE2 ECG Heartbeat Arrhythmia Classification** competition, achieving a **Private Leaderboard Macro-F1 of `0.72324`** (`0.71440` Public LB, `+0.00884` positive generalization gain).
+A complete time-series deep learning & post-competition forensic analysis for **NPPE2 ECG Heartbeat Arrhythmia Classification**, achieving a **Private Leaderboard Macro-F1 of `0.72324`** (`0.71440` Public LB, **`+0.00884`** positive generalization gain).
 
 ---
 
@@ -11,43 +11,59 @@ A complete time-series deep learning & ensembling solution for the **NPPE2 ECG H
 | **Competition** | NPPE2 ECG Heartbeat Arrhythmia Classification |
 | **Task** | Multi-Class ECG Heartbeat Arrhythmia Classification |
 | **Evaluation Metric** | **Macro-F1** across all arrhythmia classes |
-| **Best Private LB** | **`0.72324`** (`submission_s3_standalone.csv`, S3 true-align + classwise pseudo) |
-| **Best Blend Private LB** | **`0.72259`** (`submission_v3_blend_heavy.csv`, Public `0.72065`) |
-| **Submissions Analyzed** | 29 total (`r = 0.9983` Public–Private correlation) |
+| **Best Private LB** | **`0.72324`** (`submission_s3_standalone.csv` — S3 true-align + class-wise pseudo) |
+| **Best Blend Private LB** | **`0.72259`** (`submission_v3_blend_heavy.csv` — Public `0.72065`) |
+| **Submissions Audited** | 29 total (`r = 0.9983` Public–Private correlation, mean gap `+0.00075`) |
 
 ---
 
 ## 2. Mathematical Formulation
 
 ### Evaluation Metric: Macro-F1
-Macro-F1 weights every arrhythmia class $c \in \{1, \dots, C\}$ equally regardless of class frequency:
+Macro-F1 weights every arrhythmia class $c \in \{1, \dots, C\}$ equally regardless of class support, making rare-class recall critical:
 
 $$\text{Macro-F1} = \frac{1}{C} \sum_{c=1}^{C} \text{F1}_c = \frac{1}{C} \sum_{c=1}^{C} \frac{2 \cdot \text{TP}_c}{2 \cdot \text{TP}_c + \text{FP}_c + \text{FN}_c}$$
 
-### Class-Wise Pseudo-Labeling & Threshold Alignment
-To counter class imbalance and distribution shift between train and test:
+### Class-Wise Confidence Pseudo-Labeling & Public–Private Correlation
+To avoid overfitting to majority classes or noisy public thresholds:
 
-1. **Class-Wise Confidence Filtering:** Pseudo-labels $\tilde{y}_i = \arg\max_c P(y = c \mid x_i)$ are accepted only when $P(\tilde{y}_i \mid x_i) \ge \tau_c$, where $\tau_c$ is calibrated per class.
-2. **Public–Private Generalization Analysis:** Across 29 submissions, Pearson correlation between Public and Private LB was:
-   $$r_{\text{pub,priv}} = 0.9983, \qquad \mu_{\text{priv}-\text{pub}} = +0.00075, \qquad \sigma_{\text{gap}} = 0.00898$$
+$$\tilde{y}_i = \arg\max_c P(y = c \mid x_i), \quad \text{accepted iff } P(\tilde{y}_i \mid x_i) \ge \tau_c \text{ (floor } 0.85 \text{, prior-capped)}$$
+
+Across all 29 submissions, Public–Private alignment followed:
+
+$$r_{\text{pub,priv}} = 0.9983, \qquad \mu_{\text{priv}-\text{pub}} = +0.00075, \qquad \sigma_{\text{gap}} = 0.00898$$
 
 ---
 
-## 3. End-to-End Pipeline & Steps Taken
+## 3. Step-by-Step Methodology (What, Why & How)
 
 ```mermaid
 flowchart LR
-    A["Raw ECG Waveforms"] --> B["Signal Preprocessing &<br/>True-Align Normalization"]
-    B --> C["Deep Time-Series Backbones<br/>(Multi-Seed / Multi-Fold)"]
-    C --> D["Class-Wise Pseudo-Labeling<br/>(S3 True-Align)"]
-    D --> E["Heavy Multi-Model Blending<br/>(v3_blend_heavy: 0.72259)"]
-    D --> F["S3 Standalone<br/>(Private LB: 0.72324)"]
+    A["Raw ECG Waveforms"] --> B["Sub-Pixel Peak Centering<br/>(True-Align Preprocessing)"]
+    B --> C["1D CNN Backbones<br/>vs Tabular LGBM Audit"]
+    C --> D["Adversarial Validation<br/>(RR AUC=0.80, Morph AUC=0.958)"]
+    D --> E["Class-Wise Pseudo-Labeling<br/>(Floor 0.85 + Prior Caps)"]
+    E --> F["S3 Standalone: 0.72324 Private<br/>(v3_blend_heavy: 0.72259)"]
 ```
 
-1. **Step 1 — Signal Alignment & Baseline:** Established CV pipeline aligned with Macro-F1 and per-class recall/precision tracking.
-2. **Step 2 — Multi-Model Blending (`v3_blend` series):** Built weighted probability blends (`v3_blend` `0.72048`, `v3_blend_w31` `0.72087`, `v3_blend_heavy` `0.72259`).
-3. **Step 3 — True-Align + Class-Wise Pseudo-Labeling (`S3`):** Applied class-wise pseudo-labeling and alignment, yielding **`0.72324` Private LB** (`+0.00884` gain over Public LB).
-4. **Step 4 — Post-Competition Audit:** Analyzed all 29 submissions (`POST_COMPETITION_INSIGHTS.md`), confirming `0.9983` Public–Private correlation and documenting dataset-specific lessons.
+### Step 1 — Model Family Audit: Why 1D CNNs Beat LGBM
+- **What:** Evaluated both tabular GBDT (`LGBM` + morphology features) and deep 1D CNNs across CV and LB.
+- **Why:** Post-competition forensics across 29 submissions proved that **every LGBM/baseline submission overfit Public LB** (mean Private–Public gap **`-0.01389`**, std `0.01062`), whereas **CNNs consistently generalized positively** (mean gap **`+0.01060`**).
+- **How:** Shifted primary modeling away from LGBM prior-tuning toward aligned 1D CNNs (`src/pipeline.py`).
+
+### Step 2 — Sub-Pixel Peak Centering (`True-Align`)
+- **What:** Applied sub-pixel R-peak alignment preprocessing (`true-align`) on training and test ECG waveforms.
+- **Why:** Adversarial validation showed peak-region indices (`sig_115–140`) and RR intervals (`AUC = 0.80`) carried strong train/test distribution shift. Unaligned waveforms caused phase jitter that degraded rare-class generalization.
+- **How:** Centered heartbeat waveforms prior to CNN ingestion, yielding a consistent `+0.00579` mean Public-to-Private gain.
+
+### Step 3 — Class-Wise Pseudo-Labeling (`S3 Standalone = 0.72324`)
+- **What:** Generated class-wise pseudo-labels using a confidence floor of `0.85` with class-prior caps instead of global probability thresholds or aggressive Class-3 (`c3`) weight pushing.
+- **Why:** Top submissions differed primarily on **Class-3 (rare class) recall**. Aggressive `c3` recalibration or prior-weight tuning caused `-0.004` to `-0.023` Private LB drops, whereas class-wise capped pseudo-labeling preserved calibration.
+- **How:** `submission_s3_standalone.csv` achieved the #1 Private LB score of **`0.72324`** (`+0.00884` over its `0.71440` Public LB).
+
+### Step 4 — Blending vs. Standalone Selection
+- **What:** Compared `S3` standalone against heavy multi-model ensembles (`v3_blend_heavy`: `0.72259`, `v3s3b`: `0.72258`, `v3_blend_w31`: `0.72087`, `v3_blend`: `0.72048`).
+- **Why & Key Lesson:** While heavy blending smoothed Public LB (`0.72065`), the cleaner single `S3` true-aligned + class-wise pseudo-labeled CNN generalized best on Private LB (`0.72324`).
 
 ---
 
@@ -63,12 +79,12 @@ flowchart LR
 
 ```text
 .
-├── assets/                     # Leaderboard & generalization charts
-├── configs/                    # Model & training YAML/JSON configurations
-├── docs/                       # POST_COMPETITION_INSIGHTS.md (29-sub analysis)
+├── assets/                     # Leaderboard & account generalization charts
+├── configs/                    # Model & training configurations (best_params.yaml)
+├── docs/                       # POST_COMPETITION_INSIGHTS.md (29-sub forensic audit)
 ├── kernels/                    # Kaggle kernel definitions
 ├── notebooks/                  # Training & evaluation notebooks
-├── scripts/                    # Automation & submission utilities
-├── src/                        # Core ECG preprocessing, models & inference
+├── scripts/                    # Forensics & automation scripts (run_forensics*.py)
+├── src/                        # Core ECG preprocessing, models & inference (pipeline.py)
 └── README.md                   # Detailed documentation
 ```

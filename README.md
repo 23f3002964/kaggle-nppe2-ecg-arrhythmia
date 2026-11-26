@@ -69,7 +69,7 @@ flowchart LR
 
 ## 4. Performance Visualizations
 
-![NPPE2 ECG Top 5 Leaderboard](assets/ecg_lb_comparison.png)
+![NPPE2 ECG Top 5 Leaderboard](assets/ecg_lb_comparison.svg)
 
 ![NPPE2 ECG Account Generalization](assets/ecg_account_gap.png)
 

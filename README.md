@@ -6,6 +6,22 @@ A complete time-series deep learning & post-competition forensic analysis for **
 
 ---
 
+## 💡 In Simple Terms (Non-Technical Guide & Examples)
+
+> *New to medical AI or reviewing from a non-technical background? Here is what this project does in plain English before the technical deep-dive below.*
+
+- **The Goal:** Read raw **ECG (electrocardiogram)** electrical heart-signal waves and classify each heartbeat as either normal or one of several abnormal heart-rhythm (*arrhythmia*) conditions.
+- **Why It Was Tricky (Real-World Example):** Two major challenges exist in real hospital ECG data:
+  1. *Shifted Signals:* Heartbeat recordings don't always start at the exact same millisecond — like trying to compare two faces when one photo is shifted slightly to the left.
+  2. *Rare Conditions:* Most heartbeats are normal, while dangerous arrhythmias are rare. An AI that simply guesses "Normal" 95% of the time looks accurate on paper, but fails on the rare cases that actually matter for patient safety.
+- **What We Built:**
+  1. **Heartbeat Alignment (Sub-Pixel Peak Alignment):** Automatically centered every heartbeat wave on its main electrical spike before feeding it to the neural network.
+  2. **Careful Self-Training (Class-Wise Pseudo-Labeling):** When the AI was at least **85% confident** about a rare heartbeat in unlabeled test data, we let it learn from that example too — with a strict cap so it never became overconfident.
+  3. **29-Submission Consistency Audit:** Verified across 29 experiments that improvements on local tests translated reliably to unseen final data (`r = 0.9983` correlation).
+- **Outcome:** Achieved **0.72324 Private Macro-F1** (+0.00884 better on the final hidden test than the public board, proving strong real-world generalization).
+
+---
+
 ## 1. Competition Overview
 
 | Property | Detail |

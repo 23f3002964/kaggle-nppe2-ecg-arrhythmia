@@ -1,5 +1,7 @@
 # NPPE2 ECG Heartbeat Arrhythmia Classification
 
+[![Kaggle Profile](https://img.shields.io/badge/Kaggle-@adityaraj0612-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](https://www.kaggle.com/adityaraj0612)
+
 A complete time-series deep learning & post-competition forensic analysis for **NPPE2 ECG Heartbeat Arrhythmia Classification**, achieving a **Private Leaderboard Macro-F1 of `0.72324`** (`0.71440` Public LB, **`+0.00884`** positive generalization gain).
 
 ---
